@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+mcp[cli]
+python-dotenv
+httpx

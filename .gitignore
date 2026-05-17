@@ -1,0 +1,29 @@
+# Secrets — NEVER commit these
+.env
+backend/.env
+*.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Generated cards (runtime data)
+backend/static/cards/
+
+# Dev/scratch files
+backend/fix_mcp.py
+backend/list_models.py
+backend/test_*.py
+backend/__pycache__/
+
+# OS files
+.DS_Store
+Thumbs.db

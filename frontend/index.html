@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Dev Card Generator</title>
+  <meta name="description" content="Generate a beautiful Liquid Glass dev card from any GitHub profile in seconds.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #060910;
+      --glass: rgba(255,255,255,0.05);
+      --glass-border: rgba(255,255,255,0.10);
+      --blue: #3b82f6;
+      --purple: #8b5cf6;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --error: #f87171;
+      --success: #34d399;
+      --radius: 24px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 60px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(59,130,246,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(139,92,246,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(16,185,129,0.05) 0%, transparent 60%);
+      animation: bgPulse 12s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+    }
+    @keyframes bgPulse {
+      0%   { transform: scale(1) translate(0,0); }
+      100% { transform: scale(1.08) translate(20px,-20px); }
+    }
+
+    .page { position: relative; z-index: 1; width: 100%; max-width: 680px; }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 40px; padding-top: 16px; }
+    .logo {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--glass); border: 1px solid var(--glass-border);
+      padding: 8px 18px; border-radius: 100px;
+      font-size: 12px; font-weight: 600; color: var(--muted);
+      letter-spacing: 1px; text-transform: uppercase; margin-bottom: 28px;
+    }
+    .logo svg { opacity: 0.7; }
+    h1 {
+      font-size: clamp(2rem, 6vw, 3.2rem);
+      font-weight: 800; line-height: 1.1;
+      background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; margin-bottom: 14px;
+    }
+    .subtitle { font-size: 1rem; color: var(--muted); line-height: 1.6; max-width: 420px; margin: 0 auto; }
+
+    /* Card (glass panel) */
+    .glass-card {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+
+    /* Input row */
+    .input-row {
+      display: flex; gap: 12px; align-items: stretch;
+    }
+    .input-wrap {
+      flex: 1; position: relative;
+    }
+    .input-wrap svg {
+      position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); pointer-events: none;
+    }
+    input[type="text"] {
+      width: 100%; height: 54px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      color: var(--text);
+      font-size: 15px; font-family: inherit;
+      padding: 0 20px 0 46px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    input[type="text"]::placeholder { color: var(--muted); }
+    input[type="text"]:focus {
+      border-color: var(--blue);
+      background: rgba(59,130,246,0.08);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+    }
+
+    .btn-generate {
+      height: 54px; padding: 0 28px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border: none; border-radius: 16px;
+      color: #fff; font-weight: 700; font-size: 15px;
+      font-family: inherit; cursor: pointer; white-space: nowrap;
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+      box-shadow: 0 4px 20px rgba(59,130,246,0.35);
+    }
+    .btn-generate:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(59,130,246,0.5);
+    }
+    .btn-generate:active:not(:disabled) { transform: translateY(0); }
+    .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* Progress steps */
+    .steps {
+      display: none; margin-top: 28px;
+      display: none; gap: 8px; flex-direction: column;
+    }
+    .steps.visible { display: flex; }
+    .step {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid transparent;
+      transition: all 0.3s ease;
+      font-size: 14px; color: var(--muted);
+    }
+    .step.active {
+      border-color: rgba(59,130,246,0.3);
+      background: rgba(59,130,246,0.08);
+      color: var(--text);
+    }
+    .step.done {
+      border-color: rgba(52,211,153,0.3);
+      background: rgba(52,211,153,0.06);
+      color: var(--success);
+    }
+    .step-icon {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+      background: rgba(255,255,255,0.06); color: var(--muted);
+      transition: all 0.3s;
+    }
+    .step.active .step-icon {
+      background: var(--blue); color: #fff;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .step.done .step-icon { background: var(--success); color: #fff; animation: none; }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
+    }
+
+    /* Error */
+    .error-box {
+      display: none; margin-top: 20px;
+      padding: 16px 20px;
+      background: rgba(248,113,113,0.10);
+      border: 1px solid rgba(248,113,113,0.25);
+      border-radius: 14px; color: var(--error);
+      font-size: 13px; line-height: 1.6;
+    }
+    .error-box.visible { display: block; }
+
+    /* Result area */
+    .result { display: none; }
+    .result.visible { display: block; }
+
+    .result-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+    }
+    .result-title { font-size: 16px; font-weight: 700; }
+    .result-title span { color: var(--blue); }
+
+    .action-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      display: flex; align-items: center; gap: 7px;
+      padding: 9px 18px; border-radius: 12px;
+      font-size: 13px; font-weight: 600; font-family: inherit;
+      border: 1px solid var(--glass-border);
+      background: rgba(255,255,255,0.06);
+      color: var(--text); cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+    .btn.primary { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.35); color: #93c5fd; }
+    .btn.primary:hover { background: rgba(59,130,246,0.25); }
+    .btn.success-flash { background: rgba(52,211,153,0.15); border-color: rgba(52,211,153,0.35); color: var(--success); }
+
+    /* Card preview — iframe for interactive JS card */
+    .card-frame { border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.12); background: rgba(13,17,23,0.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08); }
+    .card-frame iframe { width: 100%; height: 500px; border: none; display: block; background: transparent; }
+
+    /* Regenerate */
+    .regen-row { margin-top: 20px; text-align: center; }
+    .btn-regen {
+      background: none; border: 1px solid var(--glass-border);
+      color: var(--muted); font-size: 14px; font-family: inherit;
+      padding: 10px 24px; border-radius: 12px; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-regen:hover { color: var(--text); border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.05); }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: rgba(30,41,59,0.95); border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text); padding: 12px 22px; border-radius: 12px;
+      font-size: 14px; font-weight: 500; backdrop-filter: blur(12px);
+      transition: transform 0.4s cubic-bezier(0.18,0.89,0.32,1.28);
+      z-index: 999; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* Mobile */
+    @media (max-width: 520px) {
+      .glass-card { padding: 20px 16px; }
+      .input-row { flex-direction: column; }
+      .btn-generate { width: 100%; justify-content: center; }
+      .result-header { flex-direction: column; align-items: flex-start; }
+      .action-btns { width: 100%; }
+      .btn { flex: 1; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+      </svg>
+      GitHub Dev Card
+    </div>
+    <h1>Generate Your<br>Dev Card</h1>
+    <p class="subtitle">Enter any public GitHub username to get a beautiful developer card — powered by real profile data.</p>
+  </header>
+
+  <!-- Generator panel -->
+  <div class="glass-card" id="generatorPanel">
+    <div class="input-row">
+      <div class="input-wrap">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <input type="text" id="usernameInput" placeholder="e.g. torvalds, gaearon, sindresorhus" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="btn-generate" id="generateBtn">Generate Card</button>
+    </div>
+
+    <!-- Progress steps -->
+    <div class="steps" id="steps">
+      <div class="step" id="step1">
+        <div class="step-icon" id="step1icon">1</div>
+        <span>Fetching GitHub profile &amp; repositories...</span>
+      </div>
+      <div class="step" id="step2">
+        <div class="step-icon" id="step2icon">2</div>
+        <span>Analyzing skills &amp; developer style...</span>
+      </div>
+      <div class="step" id="step3">
+        <div class="step-icon" id="step3icon">3</div>
+        <span>Generating your Liquid Glass dev card...</span>
+      </div>
+      <div class="step" id="step4">
+        <div class="step-icon" id="step4icon">4</div>
+        <span>Saving your card...</span>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div class="error-box" id="errorBox">
+      <strong>Something went wrong</strong><br>
+      <span id="errorText">Please check the username and try again.</span>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="result" id="result">
+    <div class="result-header">
+      <div class="result-title">Card ready for <span id="resultUsername">@user</span> 🎉</div>
+      <div class="action-btns">
+        <button class="btn primary" id="downloadBtn" title="Download card as PNG image">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download PNG
+        </button>
+        <button class="btn" id="copyBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy Link
+        </button>
+        <button class="btn" id="openBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Open
+        </button>
+      </div>
+    </div>
+
+    <div class="card-frame">
+      <iframe id="cardIframe" title="Dev Card Preview"></iframe>
+    </div>
+
+    <div class="regen-row">
+      <button class="btn-regen" id="regenBtn">&#8635; Generate another card</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">&#10003; Copied to clipboard!</div>
+
+<script>
+  // Relative URL works on both localhost (when served by FastAPI) and Cloud Run
+  const BACKEND = '';
+
+  const input      = document.getElementById('usernameInput');
+  const genBtn     = document.getElementById('generateBtn');
+  const stepsEl    = document.getElementById('steps');
+  const errorBox   = document.getElementById('errorBox');
+  const errorText  = document.getElementById('errorText');
+  const result     = document.getElementById('result');
+  const iframe    = document.getElementById('cardIframe');
+  const toast      = document.getElementById('toast');
+  const resultUser = document.getElementById('resultUsername');
+  let currentUsername = '';
+  let currentHtml = '';
+
+  const steps = [
+    document.getElementById('step1'),
+    document.getElementById('step2'),
+    document.getElementById('step3'),
+    document.getElementById('step4'),
+  ];
+  const stepIcons = steps.map((_, i) => document.getElementById(`step${i+1}icon`));
+
+  function setStep(active) {
+    steps.forEach((s, i) => {
+      s.className = 'step' + (i < active ? ' done' : i === active ? ' active' : '');
+      stepIcons[i].textContent = i < active ? '✓' : i + 1;
+    });
+  }
+
+  function showToast(msg = '✓ Copied!') {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2800);
+  }
+
+  function reset() {
+    errorBox.className = 'error-box';
+    result.className = 'result';
+    stepsEl.className = 'steps';
+    steps.forEach((s, i) => {
+      s.className = 'step';
+      stepIcons[i].textContent = i + 1;
+    });
+  }
+
+  async function generate() {
+    const username = input.value.trim();
+    if (!username) { input.focus(); return; }
+
+    reset();
+    genBtn.disabled = true;
+    genBtn.textContent = 'Generating…';
+    stepsEl.className = 'steps visible';
+    setStep(0);
+
+    try {
+      // Simulate step progression during the single backend call
+      const stepTimer = setInterval(() => {}, 800);
+
+      // Step 1 active immediately
+      setStep(0);
+      await new Promise(r => setTimeout(r, 400));
+      setStep(1);
+
+      let response;
+      try {
+        response = await fetch(`${BACKEND}/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+      } catch (e) {
+        throw new Error(`Cannot reach backend — is it running at ${BACKEND}? (${e.message})`);
+      }
+
+      setStep(2);
+      await new Promise(r => setTimeout(r, 300));
+      setStep(3);
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(`Server error ${response.status}: ${err.detail || response.statusText}`);
+      }
+
+      await response.json();
+
+      // Fetch the saved card HTML
+      const cardRes = await fetch(`${BACKEND}/card/${username}`);
+      if (!cardRes.ok) throw new Error('Card was saved but could not be loaded.');
+      const cardData = await cardRes.json();
+
+      clearInterval(stepTimer);
+
+      // Mark all done
+      steps.forEach((s, i) => {
+        s.className = 'step done';
+        stepIcons[i].textContent = '✓';
+      });
+
+      currentUsername = username;
+      currentHtml = cardData.html;
+
+      // Render via srcdoc — preserves JS for drag/shuffle interaction
+      iframe.srcdoc = cardData.html;
+
+      resultUser.textContent = '@' + username;
+      result.className = 'result visible';
+      result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    } catch (err) {
+      errorText.textContent = err.message;
+      errorBox.className = 'error-box visible';
+      stepsEl.className = 'steps';
+    } finally {
+      genBtn.disabled = false;
+      genBtn.textContent = 'Generate Card';
+    }
+  }
+
+  // Download as PNG using html2canvas
+  document.getElementById('downloadBtn').addEventListener('click', async () => {
+    if (!currentHtml || !currentUsername) return;
+    const btn = document.getElementById('downloadBtn');
+    btn.textContent = 'Capturing…';
+    btn.disabled = true;
+    try {
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      const target = doc.body;
+      const canvas = await html2canvas(target, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#0d1117',
+        scale: 2,
+        logging: false,
+      });
+      const link = document.createElement('a');
+      link.download = `${currentUsername}-devcard.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('⬇ PNG saved!');
+    } catch (e) {
+      showToast('Capture failed — try Open instead');
+      console.error(e);
+    } finally {
+      btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download PNG`;
+      btn.disabled = false;
+    }
+  });
+
+  // Copy card URL
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    const url = `${BACKEND}/static/cards/${currentUsername}.html`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('✓ Link copied!');
+      const btn = document.getElementById('copyBtn');
+      btn.classList.add('success-flash');
+      setTimeout(() => btn.classList.remove('success-flash'), 1500);
+    } catch(e) {
+      showToast('Could not copy — try manually');
+    }
+  });
+
+  // Open in new tab
+  document.getElementById('openBtn').addEventListener('click', () => {
+    if (!currentUsername) return;
+    window.open(`${BACKEND}/static/cards/${currentUsername}.html`, '_blank');
+  });
+
+  // Generate another
+  document.getElementById('regenBtn').addEventListener('click', () => {
+    result.className = 'result';
+    input.value = '';
+    input.focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  genBtn.addEventListener('click', generate);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+</script>
+</body>
+</html>

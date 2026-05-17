@@ -1,0 +1,28 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment files (secrets injected via Cloud Run Secret Manager)
+.env
+backend/.env
+
+# Dev/test files
+backend/fix_mcp.py
+backend/test_*.py
+backend/list_models.py
+backend/__pycache__/
+
+# Git
+.git/
+.gitignore
+
+# Docker
+backend/Dockerfile
